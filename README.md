@@ -1,4 +1,4 @@
-# Complex Hacking Methodology for Metasploitable 2
+# Metasploitable 2
 
 This document outlines an advanced hacking approach for Metasploitable 2, involving multiple phases such as reconnaissance, manual exploitation, privilege escalation, and post-exploitation.
 
