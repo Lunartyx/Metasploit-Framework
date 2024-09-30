@@ -72,6 +72,10 @@ nc -vnlp 4444
 
 As the listener is active we execute the exploit and open the reverse shell.
 
+opening a bash shell
+
+python -c 'import pty;pty.spawn("/bin/bash")'
+
 ## 4. Privilege Escalation
 
 Once a low-privilege shell is obtained, escalate privileges.
