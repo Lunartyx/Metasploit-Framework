@@ -88,7 +88,21 @@ python -c 'import pty;pty.spawn("/bin/bash")'
 
 Once a low-privilege shell is obtained, we escalate privileges.
 
-we do
+we do that with a kernel exploit. so we first check the release and kernel version with
+
+```
+uname -a
+lsb_release -a
+```
+
+Here we see that the target has kernel 2.6.24 and is running Ubuntu 8.04
+
+With the metasploit framework we can search through exploits and filter to our requirement.
+
+```
+searchsploit privilege | grep -i linux | grep -i kernel | grep 2.6
+```
+
 this
 and
 this
